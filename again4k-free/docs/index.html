@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Again4k — монитор канала</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2447F5">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F3; --panel:#FFFFFF; --ink:#111A22; --mute:#5E6B78; --line:#D5DBE1;
+  --acc:#2447F5; --up:#0C8A5B; --down:#C93A2E; --live:#E5322D; --soft:#E8ECFF;
+  --head:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'Instrument Sans','Segoe UI',system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0E141B; --panel:#151D26; --ink:#E8EEF3; --mute:#8D9BA9; --line:#26323E;
+  --acc:#7C98FF; --up:#3CCB91; --down:#FF7A6E; --live:#FF5A52; --soft:#1C2740; color-scheme:dark;}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:none}
+a:hover .t{text-decoration:underline}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 60px}
+
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:8px 0 22px}
+.ava{width:56px;height:56px;border-radius:50%;background:var(--line) center/cover}
+header h1{font:700 28px/1.1 var(--head);margin:0;letter-spacing:-.01em}
+header .sub{color:var(--mute);font-size:14px}
+.status{margin-left:auto;text-align:right;font-size:13px;color:var(--mute)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--up);margin-right:6px}
+.dot.err{background:var(--down)}
+.dot.pulse{animation:p 1.6s ease-out infinite}
+@keyframes p{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--up) 60%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
+@media (prefers-reduced-motion:reduce){.dot.pulse{animation:none}}
+
+.alert{background:color-mix(in srgb,var(--down) 12%,var(--panel));border:1px solid var(--down);padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:14px}
+
+/* лента показателей */
+.strip{display:grid;grid-template-columns:repeat(5,1fr);background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.m{all:unset;box-sizing:border-box;cursor:pointer;padding:16px 18px 14px;border-right:1px solid var(--line);border-bottom:3px solid transparent;display:block}
+.m:last-child{border-right:0}
+.m:hover{background:color-mix(in srgb,var(--acc) 5%,var(--panel))}
+.m[aria-pressed=true]{border-bottom-color:var(--acc);background:var(--soft)}
+.m .l{color:var(--mute);font-size:13px}
+.m .v{font:700 30px/1.15 var(--head);margin:2px 0 8px;letter-spacing:-.01em}
+.d{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mute);padding:1px 0}
+.d b{font-weight:600}
+.up{color:var(--up)}.down{color:var(--down)}.zero{color:var(--mute)}
+@media (max-width:900px){.strip{grid-template-columns:repeat(2,1fr)}.m{border-bottom:1px solid var(--line)}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;margin-top:16px}
+.panel h2{font:600 18px/1.2 var(--head);margin:0}
+.ph{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.tabs{margin-left:auto;display:flex;gap:4px}
+.tab{all:unset;cursor:pointer;padding:4px 11px;border-radius:5px;font-size:13px;color:var(--mute);border:1px solid var(--line)}
+.tab[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+#chart{position:relative}
+#chart svg{width:100%;height:auto;display:block;touch-action:none}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;padding:5px 9px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-120%);display:none}
+.note{color:var(--mute);font-size:12.5px;margin-top:8px}
+.empty{color:var(--mute);padding:30px 0;text-align:center}
+
+.cols{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-weight:500;color:var(--mute);text-align:right;font-size:12.5px;padding:0 8px 8px;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td{padding:9px 8px;border-top:1px solid var(--line);text-align:right;vertical-align:middle;white-space:nowrap}
+td:first-child{white-space:normal;min-width:240px;padding-left:0}
+.vt{display:flex;gap:10px;align-items:center}
+.vt img{width:88px;height:50px;object-fit:cover;border-radius:4px;background:var(--line);flex:none}
+.vt .t{font-weight:500;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.live{background:var(--live);color:#fff;font-size:11.5px;font-weight:600;padding:1px 6px;border-radius:3px;margin-right:6px}
+.upc{background:var(--mute);color:var(--panel);font-size:11.5px;font-weight:600;padding:1px 6px;border-radius:3px;margin-right:6px}
+
+.feed{list-style:none;margin:0;padding:0}
+.feed li{padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.feed li:first-child{border-top:0;padding-top:0}
+.feed .w{color:var(--mute);font-size:12.5px}
+.feed .ic{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:8px;background:var(--acc)}
+.feed .ic.live{background:var(--live);padding:0;border-radius:50%}
+.feed .ic.milestone{background:var(--up)}
+.cm .a{font-weight:600}
+.cm .vv{color:var(--mute);font-size:12.5px}
+.cm p{margin:2px 0 0;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="ava" id="ava"></div>
+    <div>
+      <h1 id="title">Again4k</h1>
+      <div class="sub" id="sub">Загрузка…</div>
+    </div>
+    <div class="status" id="status"></div>
+  </header>
+
+  <div id="alert"></div>
+
+  <section class="strip" id="strip" aria-label="Показатели канала"></section>
+
+  <section class="panel">
+    <div class="ph">
+      <h2 id="ctitle">Динамика</h2>
+      <div class="tabs" id="ranges"></div>
+    </div>
+    <div id="chart"></div>
+    <div class="note" id="cnote"></div>
+  </section>
+
+  <div class="cols">
+    <section class="panel">
+      <div class="ph"><h2>Последние видео</h2></div>
+      <div class="tw"><table id="vids"></table></div>
+    </section>
+    <div>
+      <section class="panel" style="margin-top:16px">
+        <div class="ph"><h2>События</h2></div>
+        <ul class="feed" id="events"></ul>
+      </section>
+      <section class="panel">
+        <div class="ph"><h2>Новые комментарии</h2></div>
+        <ul class="feed" id="comments"></ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const nf = new Intl.NumberFormat('ru-RU');
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rtf = new Intl.RelativeTimeFormat('ru', { numeric: 'auto' });
+function ago(t) {
+  const d = (new Date(t) - Date.now()) / 1000, a = Math.abs(d);
+  if (a < 60) return 'только что';
+  if (a < 3600) return rtf.format(Math.round(d / 60), 'minute');
+  if (a < 86400) return rtf.format(Math.round(d / 3600), 'hour');
+  if (a < 2592000) return rtf.format(Math.round(d / 86400), 'day');
+  return rtf.format(Math.round(d / 2592000), 'month');
+}
+const val = (n) => (n == null ? '—' : nf.format(n));
+const sgn = (n) => (n == null ? '—' : (n > 0 ? '+' : n < 0 ? '−' : '') + nf.format(Math.abs(n)));
+const cls = (n) => (n > 0 ? 'up' : n < 0 ? 'down' : 'zero');
+
+const METRICS = [
+  { k: 's', label: 'Подписчики', hint: 'YouTube округляет число подписчиков до трёх значащих цифр, поэтому график идёт ступеньками.' },
+  { k: 'v', label: 'Просмотры канала' },
+  { k: 'n', label: 'Видео' },
+  { k: 'l', label: 'Лайки', hint: 'Сумма лайков под последними 50 видео.' },
+  { k: 'c', label: 'Комментарии', hint: 'Сумма комментариев под последними 50 видео.' },
+];
+const RANGES = [['24h', '24 часа'], ['7d', '7 дней'], ['30d', '30 дней'], ['all', 'Всё']];
+let metric = 's', range = '24h', state = null, hist = [];
+
+function renderStrip() {
+  const s = state;
+  $('#strip').innerHTML = METRICS.map((m) => {
+    const row = (lab, d) => `<div class="d"><span>${lab}</span><b class="${cls(d?.[m.k])}">${sgn(d?.[m.k])}</b></div>`;
+    return `<button class="m" data-k="${m.k}" aria-pressed="${m.k === metric}">
+      <div class="l">${m.label}</div>
+      <div class="v">${val(s.current[m.k])}</div>
+      ${row('за час', s.deltas.h1)}${row('за сутки', s.deltas.h24)}${row('за 7 дней', s.deltas.d7)}
+    </button>`;
+  }).join('');
+  document.querySelectorAll('.m').forEach((b) => b.onclick = () => { metric = b.dataset.k; renderStrip(); draw(); });
+}
+
+function renderHeader() {
+  const c = state.channel;
+  if (c) {
+    $('#title').textContent = c.title;
+    $('#ava').style.backgroundImage = c.thumb ? `url(${c.thumb})` : '';
+    $('#sub').innerHTML = `<a href="https://www.youtube.com/${esc(c.handle)}" target="_blank" rel="noopener">${esc(c.handle)}</a> · на YouTube с ${new Date(c.createdAt).toLocaleDateString('ru-RU')}`;
+    document.title = `${c.title} — ${val(c.subs)} подписчиков`;
+  }
+  $('#alert').innerHTML = state.error ? `<div class="alert"><b>Ошибка:</b> ${esc(state.error)}</div>` : '';
+}
+
+function renderStatus() {
+  if (!state) return;
+  const ok = !state.error;
+  $('#status').innerHTML = `<span class="dot ${ok ? 'pulse' : 'err'}"></span>${ok ? 'Слежение идёт' : 'Есть проблема'}<br>данные обновлены ${state.lastUpdate ? ago(state.lastUpdate) : 'ещё нет'}`;
+}
+
+function renderVideos() {
+  const rows = state.videos.map((v) => {
+    const er = v.views && v.likes != null ? (v.likes / v.views * 100).toFixed(1).replace('.', ',') + '%' : '—';
+    const badge = v.live === 'live' ? '<span class="live">LIVE</span>' : v.live === 'upcoming' ? '<span class="upc">СКОРО</span>' : '';
+    return `<tr><td><a class="vt" href="https://youtu.be/${esc(v.id)}" target="_blank" rel="noopener">
+      <img src="${esc(v.thumb)}" alt="" loading="lazy"><span>${badge}<span class="t">${esc(v.title)}</span></span></a></td>
+      <td>${ago(v.publishedAt)}</td><td>${val(v.views)}</td><td>${val(v.likes)}</td><td>${val(v.comments)}</td><td>${er}</td></tr>`;
+  }).join('');
+  $('#vids').innerHTML = `<thead><tr><th>Видео</th><th>Выложено</th><th>Просмотры</th><th>Лайки</th><th>Комм.</th><th>Лайков/просм.</th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="empty">Видео пока нет</td></tr>'}</tbody>`;
+}
+
+function renderFeeds() {
+  $('#events').innerHTML = state.events.length ? state.events.map((e) => {
+    const inner = `<span class="ic ${esc(e.type)}"></span>${esc(e.text)}<div class="w">${ago(e.t)}</div>`;
+    return `<li>${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${inner}</a>` : inner}</li>`;
+  }).join('') : '<li class="empty">Событий пока нет. Здесь появятся новые видео, трансляции и круглые отметки.</li>';
+
+  $('#comments').innerHTML = state.comments.length ? state.comments.slice(0, 12).map((c) =>
+    `<li class="cm"><span class="a">${esc(c.author)}</span> <span class="w">${ago(c.t)}</span>
+     <p>${esc(c.text)}</p><div class="vv">${esc(c.videoTitle)}</div></li>`
+  ).join('') : '<li class="empty">Комментариев пока нет.</li>';
+}
+
+// --- график ---
+function draw() {
+  const m = METRICS.find((x) => x.k === metric);
+  $('#ctitle').textContent = m.label;
+  $('#cnote').textContent = m.hint || '';
+  const pts = hist.filter((p) => p[metric] != null);
+  const box = $('#chart');
+  if (pts.length < 2) {
+    box.innerHTML = '<div class="empty">Данных для графика пока мало. Сервер собирает снимки по расписанию — загляни через несколько минут.</div>';
+    return;
+  }
+  const W = 800, H = 280, L = 62, R = 14, T = 12, B = 28;
+  const x0 = pts[0].t, x1 = pts[pts.length - 1].t;
+  let lo = Math.min(...pts.map((p) => p[metric])), hi = Math.max(...pts.map((p) => p[metric]));
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+  const X = (t) => L + (t - x0) / (x1 - x0) * (W - L - R);
+  const Y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p[metric]).toFixed(1)).join('');
+  const area = line + `L${X(x1)} ${H - B}L${X(x0)} ${H - B}Z`;
+  const fmtT = (t) => { const d = new Date(t); return (x1 - x0) <= 864e5 * 1.5
+    ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }); };
+  let grid = '';
+  for (let i = 0; i < 4; i++) {
+    const v = lo + (hi - lo) * i / 3, y = Y(v);
+    grid += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L - 8}" y="${y + 4}" text-anchor="end" font-size="12" fill="var(--mute)">${nf.format(Math.round(v))}</text>`;
+  }
+  for (let i = 0; i < 5; i++) {
+    const t = x0 + (x1 - x0) * i / 4;
+    grid += `<text x="${X(t)}" y="${H - 8}" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}" font-size="12" fill="var(--mute)">${fmtT(t)}</text>`;
+  }
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="График: ${esc(m.label)}">${grid}
+    <path d="${area}" fill="var(--acc)" opacity=".10"/><path d="${line}" fill="none" stroke="var(--acc)" stroke-width="2.2" stroke-linejoin="round"/>
+    <g id="cur" style="display:none"><line id="cl" y1="${T}" y2="${H - B}" stroke="var(--mute)" stroke-dasharray="3 3"/><circle id="cc" r="4.5" fill="var(--acc)" stroke="var(--panel)" stroke-width="2"/></g></svg><div class="tip" id="tip"></div>`;
+  const svg = box.querySelector('svg'), tip = $('#tip'), cur = $('#cur');
+  const move = (e) => {
+    const r = svg.getBoundingClientRect();
+    const t = x0 + ((e.clientX - r.left) / r.width * W - L) / (W - L - R) * (x1 - x0);
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
+    const px = X(best.t), py = Y(best[metric]);
+    cur.style.display = ''; tip.style.display = 'block';
+    $('#cl').setAttribute('x1', px); $('#cl').setAttribute('x2', px);
+    $('#cc').setAttribute('cx', px); $('#cc').setAttribute('cy', py);
+    tip.style.left = px / W * r.width + 'px'; tip.style.top = py / H * r.height + 'px';
+    tip.textContent = `${nf.format(best[metric])} · ${new Date(best.t).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+  };
+  svg.onpointermove = move; svg.onpointerdown = move;
+  svg.onpointerleave = () => { cur.style.display = 'none'; tip.style.display = 'none'; };
+}
+
+let raw = null;
+const pointsAll = () => (raw?.history || []).map((a) => ({ t: a[0], s: a[1], v: a[2], n: a[3], l: a[4], c: a[5] }));
+function deltaOf(all, ms) {
+  if (all.length < 2) return null;
+  const last = all[all.length - 1], target = last.t - ms;
+  let base = null;
+  for (let i = all.length - 1; i >= 0; i--) if (all[i].t <= target) { base = all[i]; break; }
+  if (!base) return null;
+  const d = (k) => (last[k] != null && base[k] != null ? last[k] - base[k] : null);
+  return { s: d('s'), v: d('v'), n: d('n'), l: d('l'), c: d('c') };
+}
+function loadHistory() {
+  const ms = { '24h': 864e5, '7d': 6048e5, '30d': 2592e6, all: Infinity }[range];
+  let pts = pointsAll().filter((p) => p.t >= Date.now() - ms);
+  if (pts.length > 500) {
+    const k = Math.ceil(pts.length / 500), o = pts.filter((_, i) => i % k === 0);
+    if (o[o.length - 1] !== pts[pts.length - 1]) o.push(pts[pts.length - 1]);
+    pts = o;
+  }
+  hist = pts; draw();
+}
+async function loadState() {
+  try {
+    const r = await fetch('data/state.json?t=' + Date.now());
+    if (!r.ok) throw new Error('no data');
+    raw = await r.json();
+    const all = pointsAll(), last = all[all.length - 1] || {};
+    state = {
+      channel: raw.channel, videos: raw.videos || [], comments: raw.comments || [],
+      events: (raw.events || []).slice(0, 30), error: raw.error, lastUpdate: raw.lastUpdate,
+      current: { s: last.s ?? null, v: last.v ?? null, n: last.n ?? null, l: last.l ?? null, c: last.c ?? null },
+      deltas: { h1: deltaOf(all, 36e5), h24: deltaOf(all, 864e5), d7: deltaOf(all, 6048e5) },
+    };
+    renderHeader(); renderStrip(); renderVideos(); renderFeeds(); renderStatus(); loadHistory();
+  } catch {
+    $('#alert').innerHTML = '<div class="alert"><b>Данных пока нет.</b> Открой вкладку Actions в репозитории и один раз запусти workflow «poll» (Run workflow). Первые цифры появятся через минуту.</div>';
+  }
+}
+
+$('#ranges').innerHTML = RANGES.map(([k, l]) => `<button class="tab" data-r="${k}" aria-pressed="${k === range}">${l}</button>`).join('');
+document.querySelectorAll('.tab').forEach((b) => b.onclick = () => {
+  range = b.dataset.r;
+  document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  loadHistory();
+});
+
+loadState();
+setInterval(loadState, 60000);
+setInterval(renderStatus, 30000);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
